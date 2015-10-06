@@ -23,19 +23,15 @@ try:
 except (etcd.EtcdKeyNotFound, KeyError):
     client.write("/backends", None, dir=True)
 
+
+{{/* supporting multiple ports, ala: https://github.com/jwilder/docker-register/pull/3/ */}}
 {{ $local := . }}
-{{range $key, $value := .}}
-{{ $addrLen := len $value.Addresses }}
-{{ if eq $addrLen 1 }}
-{{ with $address := index $value.Addresses 0 }}
-
-{{ if $address.HostPort}}
-# {{ $value.Name }}
-
-client.write("/backends/{{ $value.Image.Repository}}/{{printf "%.*s" 12 $value.ID}}", "{{ $local.Env.HOST_IP }}:{{ $address.HostPort }}", ttl=15)
-client.write("/backends/{{ $value.Image.Repository}}/port", "{{ $address.Port }}", ttl=15)
-
-{{ end }}
-{{ end }}
-{{end}}
-{{end}}
+{{ range $instance := . }}
+	{{ range $address := $instance.Addresses }}
+		{{ if $address.HostPort}}
+# {{ $instance.Name }}
+client.write("/backends/{{ $instance.Name }}-{{ $address.Port }}/{{ printf "%.*s" 12 $instance.ID }}", "{{ $local.Env.HOST_IP }}:{{ $address.HostPort }}", ttl=15)
+client.write("/backends/{{ $instance.Name }}-{{ $address.Port }}/port", "{{ $address.Port }}", ttl=15)
+		{{ end }}
+	{{ end}}
+{{ end}}
